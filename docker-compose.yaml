@@ -1,0 +1,94 @@
+name: go-auth-service
+
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile.auth
+    container_name: auth-service
+    volumes:
+      - ./configs/:/app/configs/
+    restart: on-failure
+    env_file:
+      - .env
+    environment:
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - VAULT_URL=${VAULT_URL}
+      - CONFIG_FILENAME=${CONFIG_FILENAME}
+    depends_on:
+        db:
+          condition: service_started
+        redis:
+          condition: service_started
+        migrate:
+          condition: service_completed_successfully
+    ports: 
+      - 8080:8080
+  migrate:
+    container_name: auth-migrate
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    env_file:
+      - .env
+    depends_on:
+      - db
+  jaeger:
+    container_name: auth-jaeger
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - 16686:16686
+      - 831:6831/udp
+      - 832:6832/udp
+      - 775:5775/udp
+      - 4268:14268
+      - 4318:4318
+
+  db:
+    image: postgres:16.3-bullseye
+    container_name: auth-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+    env_file:
+      - .env 
+    restart: unless-stopped
+    ports:
+      - 5435:5432
+  redis:
+    image: redis:7.4.0
+    container_name: auth-redis
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+  vault:
+    container_name: auth-vault
+    build:
+      context: ./infra/vault
+      dockerfile: Dockerfile
+    cap_add:
+      - IPC_LOCK
+    env_file:
+      - .env
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_TOKEN}
+      - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    ports:
+      - 8200:8200
+  nginx:
+    image: nginx:1.27.0-alpine
+    container_name: auth-nginx
+    restart: unless-stopped
+    depends_on:
+      - auth
+    environment:
+      - APP_PORT=${APP_PORT}
+    env_file:
+      - .env
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 80:80

@@ -1,0 +1,28 @@
+database:
+  dsn:
+  maxconn: 20
+
+memorydb:
+  addr: localhost:6379
+  password:
+  db: 0
+
+yandex:
+  token_url: https://oauth.yandex.ru/token
+  user_url: https://login.yandex.ru/info?format=json
+  auth_url: https://oauth.yandex.ru/authorize
+  redirect_url: https://oauth.yandex.ru/verification_code # dev url
+  client_id: 
+  client_secret: 
+  scope:
+
+vault:
+  base_url: http://localhost:8200
+  token:
+
+app:
+  debug: false
+  addr: 0.0.0.0:8080
+  limiter:
+    limit: 1000
+    burst: 50
